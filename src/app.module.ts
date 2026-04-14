@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
+import { AppController } from "./app.controller";
 import { AuthModule } from "./modules/auth/auth.module";
 import { DoctorsModule } from "./modules/doctors/doctors.module";
 import { PatientsModule } from "./modules/patients/patients.module";
@@ -9,6 +10,7 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { RolesGuard } from "./common/roles.guard";
 
 @Module({
+  controllers: [AppController],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,

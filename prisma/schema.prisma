@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DOCTOR
+  PATIENT
+}
+
+enum VisitStatus {
+  SCHEDULED
+  CANCELLED
+}
+
+enum CancelledBy {
+  DOCTOR
+  PATIENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  doctor  Doctor?
+  patient Patient?
+}
+
+model Doctor {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  name      String
+  email     String
+  address   String
+  createdAt DateTime @default(now())
+
+  user             User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patients         Patient[]
+  visits           Visit[]
+  scheduleRules    DoctorScheduleRule[]
+  temporaryChanges TemporaryScheduleChange[]
+  permanentChanges PermanentScheduleChange[]
+}
+
+model Patient {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  doctorId  String
+  name      String
+  email     String
+  phone     String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  visits Visit[]
+}
+
+model DoctorScheduleRule {
+  id         String   @id @default(cuid())
+  doctorId   String
+  dayOfWeek  Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  doctor    Doctor                   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  intervals DoctorScheduleInterval[]
+
+  @@unique([doctorId, dayOfWeek])
+  @@index([doctorId])
+}
+
+model DoctorScheduleInterval {
+  id           String @id @default(cuid())
+  scheduleRuleId String
+  startMinutes Int
+  endMinutes   Int
+
+  scheduleRule DoctorScheduleRule @relation(fields: [scheduleRuleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleRuleId])
+}
+
+model TemporaryScheduleChange {
+  id              String   @id @default(cuid())
+  doctorId        String
+  startAt         DateTime
+  endAt           DateTime
+  overrideScheduleJson Json
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, startAt, endAt])
+}
+
+model PermanentScheduleChange {
+  id              String   @id @default(cuid())
+  doctorId        String
+  effectiveFromDate DateTime
+  newScheduleJson Json
+  createdAt       DateTime @default(now())
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, effectiveFromDate])
+}
+
+model Visit {
+  id          String       @id @default(cuid())
+  doctorId    String
+  patientId   String
+  startAt     DateTime
+  endAt       DateTime
+  status      VisitStatus  @default(SCHEDULED)
+  cancelledBy CancelledBy?
+  cancelledAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  doctor  Doctor  @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@index([doctorId, startAt, endAt])
+  @@index([patientId, startAt])
+}
